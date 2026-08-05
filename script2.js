@@ -367,3 +367,127 @@ if (document.readyState === 'loading') {
 } else {
     initApp();
 }
+
+/* ============================================================
+   CYBER-GEN V16 - PARCHE DE MEMORIA
+   Pegar al FINAL del script.js
+============================================================ */
+
+// ---------- Guardar memoria ----------
+function saveMemory() {
+    localStorage.setItem(
+        "cyberpunk_history_v15",
+        JSON.stringify(globalHistory)
+    );
+}
+
+// ---------- Cargar memoria ----------
+try {
+    globalHistory = JSON.parse(
+        localStorage.getItem("cyberpunk_history_v15")
+    ) || [];
+} catch {
+    globalHistory = [];
+}
+
+// Cargar todo el historial
+currentSessionStartIndex = 0;
+
+// ---------- Reemplaza el render del sidebar ----------
+renderHistorySidebar = function () {
+
+    if (!chatHistoryList) return;
+
+    chatHistoryList.innerHTML = "";
+
+    let contador = 1;
+
+    globalHistory.forEach((item, index) => {
+
+        if (item.role !== "user") return;
+
+        const btn = document.createElement("button");
+
+        btn.className =
+            "nav-item w-100 text-start text-truncate";
+
+        btn.innerHTML = `
+            <i class="fas fa-comment-dots me-2"></i>
+            Conversación ${contador++}
+        `;
+
+        btn.onclick = () => {
+
+            chatContainer.innerHTML = "";
+
+            for (let i = 0; i <= index + 1; i++) {
+
+                const mensaje = globalHistory[i];
+
+                appendMessage(
+                    mensaje.role,
+                    mensaje.text
+                );
+
+            }
+
+        };
+
+        chatHistoryList.appendChild(btn);
+
+    });
+
+};
+
+// ---------- Guardado automático ----------
+const originalPush = globalHistory.push.bind(globalHistory);
+
+globalHistory.push = function (...args) {
+
+    const resultado = originalPush(...args);
+
+    saveMemory();
+
+    return resultado;
+
+};
+
+// ---------- Restaurar historial al abrir ----------
+window.addEventListener("load", () => {
+
+    if (
+        globalHistory.length === 0 ||
+        !chatContainer
+    ) return;
+
+    chatContainer.innerHTML = "";
+
+    globalHistory.forEach(msg => {
+
+        appendMessage(
+            msg.role,
+            msg.text
+        );
+
+    });
+
+});
+
+// ---------- Limpiar memoria ----------
+function clearNeuronMemory() {
+
+    localStorage.removeItem(
+        "cyberpunk_history_v15"
+    );
+
+    globalHistory = [];
+
+    chatContainer.innerHTML = "";
+
+    renderHistorySidebar();
+
+}
+
+console.log(
+    "🧠 Memoria neuronal V16 cargada correctamente."
+);
