@@ -606,7 +606,7 @@ class UIController {
   }
 
   bindEvents() {
-    // Sidebar
+    // Sidebar Toggles
     this.dom.toggleSidebarBtn?.addEventListener('click', () => this.dom.sidebar?.classList.toggle('collapsed'));
     this.dom.closeSidebarBtn?.addEventListener('click', () => this.dom.sidebar?.classList.add('collapsed'));
 
@@ -640,12 +640,33 @@ class UIController {
       this.updateVoiceButtonUI(isRec);
     });
 
-    // Nuevo Chat / Reiniciar
+    // Evento del botón Limpiar/Nuevo Chat
     this.dom.clearChatBtn?.addEventListener('click', () => {
-      this.convManager.createConversation('Nueva conversación');
+      this.createNewChat();
+    });
+  }
+
+  createNewChat() {
+    this.convManager.createConversation('Nueva conversación');
+    this.resetInputState();
+    this.renderSidebar();
+    this.renderCurrentConversation();
+  }
+
+  switchConversation(id) {
+    if (this.convManager.selectConversation(id)) {
+      this.resetInputState();
       this.renderSidebar();
       this.renderCurrentConversation();
-    });
+    }
+  }
+
+  resetInputState() {
+    this.pendingFiles = [];
+    if (this.dom.fileInput) this.dom.fileInput.value = '';
+    if (this.dom.userInput) this.dom.userInput.value = '';
+    this.renderFilePreviews();
+    this.autoResizeInput();
   }
 
   autoResizeInput() {
@@ -737,23 +758,50 @@ class UIController {
     if (!this.dom.chatHistoryList) return;
     this.dom.chatHistoryList.innerHTML = '';
 
+    // --- Botón de "+ Nuevo Chat" al inicio del Sidebar ---
+    const newChatWrapper = document.createElement('div');
+    newChatWrapper.className = 'mb-3 px-1';
+    newChatWrapper.innerHTML = `
+      <button type="button" class="btn btn-outline-info w-100 text-start d-flex align-items-center justify-content-between p-2 rounded border-info text-info" style="background: rgba(0, 255, 204, 0.05); font-weight: 600;">
+        <span><i class="fas fa-plus me-2"></i> Nuevo Chat</span>
+        <i class="fas fa-comment-medical opacity-75"></i>
+      </button>
+    `;
+    const newBtn = newChatWrapper.querySelector('button');
+    newBtn.onclick = () => this.createNewChat();
+    this.dom.chatHistoryList.appendChild(newChatWrapper);
+
+    // Encabezado de la lista
+    const historyHeader = document.createElement('div');
+    historyHeader.className = 'small text-muted mb-2 px-1 text-uppercase fw-bold';
+    historyHeader.style.fontSize = '0.7rem';
+    historyHeader.style.letterSpacing = '1px';
+    historyHeader.innerText = 'Historial de Conversaciones';
+    this.dom.chatHistoryList.appendChild(historyHeader);
+
+    // Lista de Conversaciones
     const conversations = this.convManager.getConversations();
     const activeConv = this.convManager.getActiveConversation();
 
     conversations.forEach((conv) => {
       const isActive = activeConv && activeConv.id === conv.id;
       const itemWrapper = document.createElement('div');
-      itemWrapper.className = `d-flex align-items-center justify-content-between my-1 p-1 rounded ${isActive ? 'bg-secondary text-white' : 'text-muted'}`;
+      itemWrapper.className = `d-flex align-items-center justify-content-between my-1 p-2 rounded ${
+        isActive 
+          ? 'bg-dark border border-info shadow-sm' 
+          : 'bg-transparent text-muted'
+      }`;
       itemWrapper.style.cursor = 'pointer';
+      if (isActive) {
+        itemWrapper.style.boxShadow = '0 0 10px rgba(0, 255, 204, 0.2)';
+      }
 
       const titleBtn = document.createElement('button');
-      titleBtn.className = 'btn btn-sm text-start text-truncate flex-grow-1 border-0 text-white';
+      titleBtn.className = `btn btn-sm text-start text-truncate flex-grow-1 border-0 ${
+        isActive ? 'text-info fw-bold' : 'text-light opacity-75'
+      }`;
       titleBtn.innerHTML = `<i class="fas fa-comment-alt me-2 ${isActive ? 'text-info' : 'text-secondary'}"></i> ${conv.title}`;
-      titleBtn.onclick = () => {
-        this.convManager.selectConversation(conv.id);
-        this.renderSidebar();
-        this.renderCurrentConversation();
-      };
+      titleBtn.onclick = () => this.switchConversation(conv.id);
 
       const actionBox = document.createElement('div');
       actionBox.className = 'btn-group btn-group-sm ms-1';
@@ -765,7 +813,7 @@ class UIController {
       renameBtn.title = 'Renombrar conversación';
       renameBtn.onclick = (e) => {
         e.stopPropagation();
-        const newTitle = prompt('Ingresa un nuevo título:', conv.title);
+        const newTitle = prompt('Ingresa un nuevo título para la conversación:', conv.title);
         if (newTitle) {
           this.convManager.renameConversation(conv.id, newTitle);
           this.renderSidebar();
@@ -866,11 +914,7 @@ class UIController {
     if (!text && attachments.length === 0) return;
 
     // Resetear entradas de usuario
-    if (this.dom.userInput) this.dom.userInput.value = '';
-    this.pendingFiles = [];
-    if (this.dom.fileInput) this.dom.fileInput.value = '';
-    this.renderFilePreviews();
-    this.autoResizeInput();
+    this.resetInputState();
 
     // Guardar y renderizar mensaje del usuario
     const userMsgText = text || '(Archivo adjunto procesado)';
